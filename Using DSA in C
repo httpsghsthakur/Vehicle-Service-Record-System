@@ -1,0 +1,359 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+// Structure to represent a service record
+typedef struct ServiceRecord {
+    char vehicleNumber[20];
+    char ownerName[50];
+    char serviceType[50];
+    char date[11]; // DD-MM-YYYY format
+    float cost;
+    struct ServiceRecord* next;
+} ServiceRecord;
+
+// Function prototypes
+ServiceRecord* createRecord(char* vehicleNumber, char* ownerName, char* serviceType, char* date, float cost);
+void addRecord(ServiceRecord** head);
+void displayAllRecords(ServiceRecord* head);
+ServiceRecord* searchRecord(ServiceRecord* head, char* vehicleNumber);
+void updateRecord(ServiceRecord* head, char* vehicleNumber);
+void deleteRecord(ServiceRecord** head, char* vehicleNumber);
+void freeList(ServiceRecord** head);
+void saveToFile(ServiceRecord* head, const char* filename);
+void loadFromFile(ServiceRecord** head, const char* filename);
+int validateDate(const char* date);
+void displayMenu();
+
+int main() {
+    ServiceRecord* head = NULL;
+    char filename[] = "service_records.dat";
+    int choice;
+    char vehicleNumber[20];
+    
+    // Load existing records from file
+    loadFromFile(&head, filename);
+    
+    do {
+        displayMenu();
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+        getchar(); // Consume newline
+        
+        switch(choice) {
+            case 1:
+                addRecord(&head);
+                break;
+            case 2:
+                printf("Enter vehicle number to search: ");
+                fgets(vehicleNumber, sizeof(vehicleNumber), stdin);
+                vehicleNumber[strcspn(vehicleNumber, "\n")] = '\0'; // Remove newline
+                ServiceRecord* found = searchRecord(head, vehicleNumber);
+                if (found) {
+                    printf("\nRecord Found:\n");
+                    printf("Vehicle Number: %s\n", found->vehicleNumber);
+                    printf("Owner Name: %s\n", found->ownerName);
+                    printf("Service Type: %s\n", found->serviceType);
+                    printf("Date: %s\n", found->date);
+                    printf("Cost: %.2f\n", found->cost);
+                } else {
+                    printf("Record not found for vehicle number: %s\n", vehicleNumber);
+                }
+                break;
+            case 3:
+                displayAllRecords(head);
+                break;
+            case 4:
+                printf("Enter vehicle number to update: ");
+                fgets(vehicleNumber, sizeof(vehicleNumber), stdin);
+                vehicleNumber[strcspn(vehicleNumber, "\n")] = '\0';
+                updateRecord(head, vehicleNumber);
+                break;
+            case 5:
+                printf("Enter vehicle number to delete: ");
+                fgets(vehicleNumber, sizeof(vehicleNumber), stdin);
+                vehicleNumber[strcspn(vehicleNumber, "\n")] = '\0';
+                deleteRecord(&head, vehicleNumber);
+                break;
+            case 6:
+                saveToFile(head, filename);
+                printf("Records saved to file successfully.\n");
+                break;
+            case 7:
+                printf("Exiting...\n");
+                break;
+            default:
+                printf("Invalid choice. Please try again.\n");
+        }
+    } while (choice != 7);
+    
+    // Save before exiting and free memory
+    saveToFile(head, filename);
+    freeList(&head);
+    
+    return 0;
+}
+
+// Create a new service record node
+ServiceRecord* createRecord(char* vehicleNumber, char* ownerName, char* serviceType, char* date, float cost) {
+    ServiceRecord* newRecord = (ServiceRecord*)malloc(sizeof(ServiceRecord));
+    if (newRecord == NULL) {
+        printf("Memory allocation failed.\n");
+        exit(1);
+    }
+    
+    strcpy(newRecord->vehicleNumber, vehicleNumber);
+    strcpy(newRecord->ownerName, ownerName);
+    strcpy(newRecord->serviceType, serviceType);
+    strcpy(newRecord->date, date);
+    newRecord->cost = cost;
+    newRecord->next = NULL;
+    
+    return newRecord;
+}
+
+// Add a new record to the list
+void addRecord(ServiceRecord** head) {
+    char vehicleNumber[20], ownerName[50], serviceType[50], date[11];
+    float cost;
+    
+    printf("\nEnter Vehicle Number: ");
+    fgets(vehicleNumber, sizeof(vehicleNumber), stdin);
+    vehicleNumber[strcspn(vehicleNumber, "\n")] = '\0';
+    
+    // Check if vehicle number already exists
+    if (searchRecord(*head, vehicleNumber) != NULL) {
+        printf("A record with this vehicle number already exists.\n");
+        return;
+    }
+    
+    printf("Enter Owner Name: ");
+    fgets(ownerName, sizeof(ownerName), stdin);
+    ownerName[strcspn(ownerName, "\n")] = '\0';
+    
+    printf("Enter Service Type: ");
+    fgets(serviceType, sizeof(serviceType), stdin);
+    serviceType[strcspn(serviceType, "\n")] = '\0';
+    
+    do {
+        printf("Enter Date (DD-MM-YYYY): ");
+        fgets(date, sizeof(date), stdin);
+        date[strcspn(date, "\n")] = '\0';
+    } while (!validateDate(date));
+    
+    printf("Enter Service Cost: ");
+    scanf("%f", &cost);
+    getchar(); // Consume newline
+    
+    ServiceRecord* newRecord = createRecord(vehicleNumber, ownerName, serviceType, date, cost);
+    
+    // Add to the beginning of the list
+    newRecord->next = *head;
+    *head = newRecord;
+    
+    printf("Record added successfully.\n");
+}
+
+// Display all records in the list
+void displayAllRecords(ServiceRecord* head) {
+    if (head == NULL) {
+        printf("No records found.\n");
+        return;
+    }
+    
+    printf("\n%-20s %-20s %-20s %-12s %s\n", 
+           "Vehicle Number", "Owner Name", "Service Type", "Date", "Cost");
+    printf("-----------------------------------------------------------------\n");
+    
+    ServiceRecord* current = head;
+    while (current != NULL) {
+        printf("%-20s %-20s %-20s %-12s %.2f\n", 
+               current->vehicleNumber, current->ownerName, 
+               current->serviceType, current->date, current->cost);
+        current = current->next;
+    }
+}
+
+// Search for a record by vehicle number
+ServiceRecord* searchRecord(ServiceRecord* head, char* vehicleNumber) {
+    ServiceRecord* current = head;
+    
+    while (current != NULL) {
+        if (strcmp(current->vehicleNumber, vehicleNumber) == 0) {
+            return current;
+        }
+        current = current->next;
+    }
+    
+    return NULL;
+}
+
+// Update an existing record
+void updateRecord(ServiceRecord* head, char* vehicleNumber) {
+    ServiceRecord* record = searchRecord(head, vehicleNumber);
+    if (record == NULL) {
+        printf("Record not found for vehicle number: %s\n", vehicleNumber);
+        return;
+    }
+    
+    char ownerName[50], serviceType[50], date[11];
+    float cost;
+    
+    printf("\nCurrent Record Details:\n");
+    printf("Vehicle Number: %s\n", record->vehicleNumber);
+    printf("Owner Name: %s\n", record->ownerName);
+    printf("Service Type: %s\n", record->serviceType);
+    printf("Date: %s\n", record->date);
+    printf("Cost: %.2f\n", record->cost);
+    
+    printf("\nEnter new details (leave blank to keep current value):\n");
+    
+    printf("Owner Name [%s]: ", record->ownerName);
+    fgets(ownerName, sizeof(ownerName), stdin);
+    ownerName[strcspn(ownerName, "\n")] = '\0';
+    if (strlen(ownerName) > 0) {
+        strcpy(record->ownerName, ownerName);
+    }
+    
+    printf("Service Type [%s]: ", record->serviceType);
+    fgets(serviceType, sizeof(serviceType), stdin);
+    serviceType[strcspn(serviceType, "\n")] = '\0';
+    if (strlen(serviceType) > 0) {
+        strcpy(record->serviceType, serviceType);
+    }
+    
+    do {
+        printf("Date [%s]: ", record->date);
+        fgets(date, sizeof(date), stdin);
+        date[strcspn(date, "\n")] = '\0';
+        if (strlen(date) > 0) {
+            if (validateDate(date)) {
+                strcpy(record->date, date);
+                break;
+            }
+        } else {
+            break;
+        }
+    } while (1);
+    
+    printf("Cost [%.2f]: ", record->cost);
+    char costStr[20];
+    fgets(costStr, sizeof(costStr), stdin);
+    costStr[strcspn(costStr, "\n")] = '\0';
+    if (strlen(costStr) > 0) {
+        record->cost = atof(costStr);
+    }
+    
+    printf("Record updated successfully.\n");
+}
+
+// Delete a record by vehicle number
+void deleteRecord(ServiceRecord** head, char* vehicleNumber) {
+    ServiceRecord *current = *head, *prev = NULL;
+    
+    while (current != NULL && strcmp(current->vehicleNumber, vehicleNumber) != 0) {
+        prev = current;
+        current = current->next;
+    }
+    
+    if (current == NULL) {
+        printf("Record not found for vehicle number: %s\n", vehicleNumber);
+        return;
+    }
+    
+    if (prev == NULL) {
+        *head = current->next;
+    } else {
+        prev->next = current->next;
+    }
+    
+    free(current);
+    printf("Record deleted successfully.\n");
+}
+
+// Free all memory allocated for the list
+void freeList(ServiceRecord** head) {
+    ServiceRecord* current = *head;
+    ServiceRecord* next;
+    
+    while (current != NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+    }
+    
+    *head = NULL;
+}
+
+// Save records to a binary file
+void saveToFile(ServiceRecord* head, const char* filename) {
+    FILE* file = fopen(filename, "wb");
+    if (file == NULL) {
+        printf("Error opening file for writing.\n");
+        return;
+    }
+    
+    ServiceRecord* current = head;
+    while (current != NULL) {
+        fwrite(current, sizeof(ServiceRecord), 1, file);
+        current = current->next;
+    }
+    
+    fclose(file);
+}
+
+// Load records from a binary file
+void loadFromFile(ServiceRecord** head, const char* filename) {
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        // File doesn't exist yet, that's okay
+        return;
+    }
+    
+    ServiceRecord temp;
+    while (fread(&temp, sizeof(ServiceRecord), 1, file) == 1) {
+        ServiceRecord* newRecord = createRecord(
+            temp.vehicleNumber, temp.ownerName, 
+            temp.serviceType, temp.date, temp.cost);
+        
+        // Add to the beginning of the list
+        newRecord->next = *head;
+        *head = newRecord;
+    }
+    
+    fclose(file);
+}
+
+// Validate date format (DD-MM-YYYY)
+int validateDate(const char* date) {
+    if (strlen(date) != 10) return 0;
+    if (date[2] != '-' || date[5] != '-') return 0;
+    
+    for (int i = 0; i < 10; i++) {
+        if (i == 2 || i == 5) continue;
+        if (!isdigit(date[i])) return 0;
+    }
+    
+    int day = atoi(date);
+    int month = atoi(date + 3);
+    int year = atoi(date + 6);
+    
+    if (day < 1 || day > 31) return 0;
+    if (month < 1 || month > 12) return 0;
+    if (year < 1900 || year > 2100) return 0;
+    
+    return 1;
+}
+
+// Display the menu options
+void displayMenu() {
+    printf("\nVehicle Service Record System\n");
+    printf("1. Add New Service Record\n");
+    printf("2. Search Record by Vehicle Number\n");
+    printf("3. Display All Records\n");
+    printf("4. Update Record\n");
+    printf("5. Delete Record\n");
+    printf("6. Save Records to File\n");
+    printf("7. Exit\n");
+}
