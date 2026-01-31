@@ -248,7 +248,7 @@ void updateRecord(ServiceRecord* head, char* vehicleNumber) {
     printf("Record updated successfully.\n");
 }
 
-// Delete a record by vehicle number
+// Delete a record by vehicle number ?
 void deleteRecord(ServiceRecord** head, char* vehicleNumber) {
     ServiceRecord *current = *head, *prev = NULL;
     
