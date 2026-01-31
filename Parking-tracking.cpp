@@ -20,7 +20,7 @@ const double MIN_CHARGE_HOURS = 1.0;
 enum class VehicleType { CAR, BIKE, HANDICAPPED, ELECTRIC };
 enum class SlotStatus { FREE, OCCUPIED, RESERVED, MAINTENANCE };
 
-// ==================== VEHICLE CLASSES ====================
+// ==================== VEHICLE CLASSES ======================
 class Vehicle {
 protected:
     std::string registration;
